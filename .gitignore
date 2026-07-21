@@ -39,14 +39,23 @@ docs/species_plots/**/*.pdf
 !/outputs/*/plots/habitat_suitability_binary_v6.png
 !/outputs/*/plots/bic_vs_aic_v6.png
 
-/outputs_v8/**
-!/outputs_v8/*/
-!/outputs_v8/*/model_selection_report.md
-!/outputs_v8/*/plots/
-!/outputs_v8/*/plots/profile_likelihood_v7.png
-!/outputs_v8/*/plots/habitat_suitability_v7.png
-!/outputs_v8/*/plots/habitat_suitability_binary_v7.png
-!/outputs_v8/*/plots/bic_vs_aic_v7.png
+/outputs_centroid/**
+!/outputs_centroid/*/
+!/outputs_centroid/*/model_selection_report.md
+!/outputs_centroid/*/plots/
+!/outputs_centroid/*/plots/profile_likelihood_v7.png
+!/outputs_centroid/*/plots/habitat_suitability_v7.png
+!/outputs_centroid/*/plots/habitat_suitability_binary_v7.png
+!/outputs_centroid/*/plots/bic_vs_aic_v7.png
+
+/outputs_berti_sample/**
+!/outputs_berti_sample/*/
+!/outputs_berti_sample/*/model_selection_report.md
+!/outputs_berti_sample/*/plots/
+!/outputs_berti_sample/*/plots/profile_likelihood_v7.png
+!/outputs_berti_sample/*/plots/habitat_suitability_v7.png
+!/outputs_berti_sample/*/plots/habitat_suitability_binary_v7.png
+!/outputs_berti_sample/*/plots/bic_vs_aic_v7.png
 
 # OS
 .DS_Store

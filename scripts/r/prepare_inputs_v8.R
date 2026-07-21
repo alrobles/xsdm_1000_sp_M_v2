@@ -42,13 +42,14 @@ pa_factor      <- as.numeric(parse_arg("--pa_factor", "1"))
 seed           <- as.integer(parse_arg("--seed", "42"))
 buffer_m_arg   <- parse_arg("--buffer_m", "median")
 pa_method      <- tolower(parse_arg("--pa_method", "centroid"))
+pa_exp_scale   <- as.numeric(parse_arg("--pa_exp_scale", "3"))
 coastline_shp  <- parse_arg("--coastline_shp", "")
 
 if (is.null(species_name)) stop("--species is required", call. = FALSE)
 if (is.null(occ_csv))      stop("--occ_csv is required", call. = FALSE)
 if (is.null(ecoregion_shp)) stop("--ecoregion_shp is required", call. = FALSE)
-if (!pa_method %in% c("random", "centroid")) {
-  stop("--pa_method must be 'random' or 'centroid'", call. = FALSE)
+if (!pa_method %in% c("random", "centroid", "centroid_exp", "dataset")) {
+  stop("--pa_method must be 'random', 'centroid', 'centroid_exp' or 'dataset'", call. = FALSE)
 }
 if (!is.finite(pa_factor) || pa_factor <= 0) {
   stop("--pa_factor must be a positive number", call. = FALSE)
@@ -225,36 +226,72 @@ if (pa_method == "random") {
   cat(sprintf("Sampling %d pseudo-absences uniformly at random inside M\n", n_pa))
   pa_vect <- tryCatch(
     terra::spatSample(r_mask, size = n_pa, method = "random", as.points = TRUE,
-                      values = FALSE, na.rm = TRUE),
+                      values = FALSE, na.rm = TRUE, exhaustive = FALSE),
     error = function(e) NULL
   )
-} else if (pa_method == "centroid") {
-  cat(sprintf("Sampling %d pseudo-absences with probability proportional to distance from M centroid\n", n_pa))
+} else if (pa_method %in% c("centroid", "centroid_exp")) {
+  cat(sprintf("Sampling %d pseudo-absences with probability %s from M centroid\n",
+              n_pa, ifelse(pa_method == "centroid_exp", "increasing exponentially", "proportional to distance")))
   # Compute distance from each valid cell to the nearest centroid of M.
   # This gives low probability near the centroid and high probability near edges.
   M_centroids <- centroids(M)
   d_rast <- terra::distance(r_mask, M_centroids)
   d_rast <- terra::mask(d_rast, r_mask)
-  # Ensure non-negative weights and handle any zero-distance cells gracefully
-  d_rast <- ifel(d_rast < 0.1, 0.1, d_rast)
+
+  if (pa_method == "centroid") {
+    # linear distance weighting; small floor to avoid zero-probability cells
+    w_rast <- ifel(d_rast < 0.1, 0.1, d_rast)
+  } else {
+    # exponential increase with distance from centroid: normalize to [0,1] then exp(scale * x)
+    d_min <- as.numeric(global(d_rast, "min", na.rm = TRUE))
+    d_max <- as.numeric(global(d_rast, "max", na.rm = TRUE))
+    d_norm <- if (d_max > d_min) (d_rast - d_min) / (d_max - d_min) else d_rast
+    w_rast <- exp(pa_exp_scale * d_norm)
+  }
 
   pa_vect <- tryCatch(
-    terra::spatSample(d_rast, size = n_pa, method = "weights", as.points = TRUE,
-                      values = FALSE, na.rm = TRUE, exhaustive = TRUE),
+    terra::spatSample(w_rast, size = n_pa, method = "weights", as.points = TRUE,
+                      values = FALSE, na.rm = TRUE, exhaustive = FALSE),
     error = function(e) NULL
   )
+} else if (pa_method == "dataset") {
+  cat(sprintf("Using %d pseudo-absences already sampled in the dataset, filtered to M\n", n_pa))
+  if (!"presence" %in% names(occ)) {
+    stop("occurrence CSV must have a presence/occ column for pa_method='dataset'", call. = FALSE)
+  }
+  abs_all <- occ[as.integer(occ$presence) == 0L, c("lon", "lat", "presence"), drop = FALSE]
+  abs_all <- abs_all[!is.na(abs_all$lon) & !is.na(abs_all$lat), , drop = FALSE]
+  if (nrow(abs_all) == 0) {
+    stop("No absence rows (presence=0) found in occurrence CSV", call. = FALSE)
+  }
+  abs_vect <- vect(abs_all, geom = c("lon", "lat"), crs = "EPSG:4326")
+  # Keep only absences whose cell center falls inside M (not just touches boundary)
+  inside <- !is.na(terra::extract(M, abs_vect)[[1]])
+  abs_all <- abs_all[inside, , drop = FALSE]
+  if (nrow(abs_all) == 0) {
+    stop("No dataset absences fall inside the accessibility polygon M", call. = FALSE)
+  }
+  set.seed(seed + n_pres)
+  if (nrow(abs_all) > n_pa) {
+    sel <- sample.int(nrow(abs_all), n_pa)
+    abs_all <- abs_all[sel, , drop = FALSE]
+  }
+  pa <- abs_all
+  pa$presence <- 0L
+  # placeholder so code below can build pts
+  pa_vect <- vect(pa, geom = c("lon", "lat"), crs = "EPSG:4326")
 }
 
-if (is.null(pa_vect) || nrow(pa_vect) == 0) {
-  stop("Could not sample any pseudo-absences inside M on land.", call. = FALSE)
-}
-
-pa <- as.data.frame(crds(pa_vect))
-names(pa) <- c("lon", "lat")
-pa$presence <- 0L
-
-if (nrow(pa) < n_pa) {
-  cat(sprintf("WARNING: only %d/%d pseudo-absences sampled on land (raster cell limitation)\n", nrow(pa), n_pa))
+if (pa_method != "dataset") {
+  if (is.null(pa_vect) || nrow(pa_vect) == 0) {
+    stop("Could not sample any pseudo-absences inside M on land.", call. = FALSE)
+  }
+  pa <- as.data.frame(crds(pa_vect))
+  names(pa) <- c("lon", "lat")
+  pa$presence <- 0L
+  if (nrow(pa) < n_pa) {
+    cat(sprintf("WARNING: only %d/%d pseudo-absences sampled on land (raster cell limitation)\n", nrow(pa), n_pa))
+  }
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
