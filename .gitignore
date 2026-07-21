@@ -1,0 +1,56 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Data (no committed — in scratch)
+*.csv
+*.parquet
+*.tif
+*.rds
+*.nc
+*.grd
+*.gri
+data/
+
+# Output
+output/
+results/
+xsdm_results_v6/
+outputs_olds/
+output_pathology_flag_b/
+logs/
+*.out
+*.err
+
+# Large per-species diagnostic PDFs (regenerated artifacts, not source)
+docs/species_plots/**/*.pdf
+
+# Per-species outputs: commit ONLY the report + its embedded profile plot,
+# ignore everything else (models/, wb/, rds, tsv, summaries, pdfs, csvs).
+/outputs/**
+!/outputs/*/
+!/outputs/*/model_selection_report.md
+!/outputs/*/plots/
+!/outputs/*/plots/profile_likelihood_v6.png
+!/outputs/*/plots/habitat_suitability_v6.png
+!/outputs/*/plots/habitat_suitability_binary_v6.png
+!/outputs/*/plots/bic_vs_aic_v6.png
+
+/outputs_v8/**
+!/outputs_v8/*/
+!/outputs_v8/*/model_selection_report.md
+!/outputs_v8/*/plots/
+!/outputs_v8/*/plots/profile_likelihood_v7.png
+!/outputs_v8/*/plots/habitat_suitability_v7.png
+!/outputs_v8/*/plots/habitat_suitability_binary_v7.png
+!/outputs_v8/*/plots/bic_vs_aic_v7.png
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
