@@ -57,6 +57,15 @@ docs/species_plots/**/*.pdf
 !/outputs_berti_sample/*/plots/habitat_suitability_binary_v7.png
 !/outputs_berti_sample/*/plots/bic_vs_aic_v7.png
 
+/outputs_inverse_density/**
+!/outputs_inverse_density/*/
+!/outputs_inverse_density/*/model_selection_report.md
+!/outputs_inverse_density/*/plots/
+!/outputs_inverse_density/*/plots/profile_likelihood_v7.png
+!/outputs_inverse_density/*/plots/habitat_suitability_v7.png
+!/outputs_inverse_density/*/plots/habitat_suitability_binary_v7.png
+!/outputs_inverse_density/*/plots/bic_vs_aic_v7.png
+
 # OS
 .DS_Store
 Thumbs.db

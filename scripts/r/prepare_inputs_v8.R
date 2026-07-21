@@ -48,8 +48,8 @@ coastline_shp  <- parse_arg("--coastline_shp", "")
 if (is.null(species_name)) stop("--species is required", call. = FALSE)
 if (is.null(occ_csv))      stop("--occ_csv is required", call. = FALSE)
 if (is.null(ecoregion_shp)) stop("--ecoregion_shp is required", call. = FALSE)
-if (!pa_method %in% c("random", "centroid", "centroid_exp", "dataset")) {
-  stop("--pa_method must be 'random', 'centroid', 'centroid_exp' or 'dataset'", call. = FALSE)
+if (!pa_method %in% c("random", "centroid", "centroid_exp", "dataset", "inverse_presence_density")) {
+  stop("--pa_method must be 'random', 'centroid', 'centroid_exp', 'dataset' or 'inverse_presence_density'", call. = FALSE)
 }
 if (!is.finite(pa_factor) || pa_factor <= 0) {
   stop("--pa_factor must be a positive number", call. = FALSE)
@@ -248,6 +248,22 @@ if (pa_method == "random") {
     d_norm <- if (d_max > d_min) (d_rast - d_min) / (d_max - d_min) else d_rast
     w_rast <- exp(pa_exp_scale * d_norm)
   }
+
+  pa_vect <- tryCatch(
+    terra::spatSample(w_rast, size = n_pa, method = "weights", as.points = TRUE,
+                      values = FALSE, na.rm = TRUE, exhaustive = FALSE),
+    error = function(e) NULL
+  )
+} else if (pa_method == "inverse_presence_density") {
+  cat(sprintf("Sampling %d pseudo-absences with weight inverse to presence point density\n", n_pa))
+  # Distance to the nearest presence point: cells far from presences are sampled more.
+  d_rast <- terra::distance(r_mask, pres_vect)
+  d_rast <- terra::mask(d_rast, r_mask)
+  d_min <- as.numeric(global(d_rast, "min", na.rm = TRUE))
+  d_max <- as.numeric(global(d_rast, "max", na.rm = TRUE))
+  d_norm <- if (d_max > d_min) (d_rast - d_min) / (d_max - d_min) else d_rast
+  # Exponential accentuation: close to presences -> low weight, far -> high weight
+  w_rast <- exp(3 * d_norm)
 
   pa_vect <- tryCatch(
     terra::spatSample(w_rast, size = n_pa, method = "weights", as.points = TRUE,
