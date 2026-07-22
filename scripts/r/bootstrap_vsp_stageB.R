@@ -215,7 +215,7 @@ for (b in seq_len(B)) {
   prepare_cmd <- c(
     "--vanilla", "--no-save", "--no-restore",
     prepare_script,
-    "--species", "Acris blanchardi",
+    "--species", "Acris_blanchardi",
     "--occ_csv", sim_occ_csv,
     "--m_shp", m_shp,
     "--m_buffer_shp", m_buffer_shp,
@@ -229,7 +229,9 @@ for (b in seq_len(B)) {
     "--land_mask_mode", "first_year"
   )
 
-  prep_ok <- system2("Rscript", prepare_cmd, stdout = NULL, stderr = NULL) == 0
+  prep_ok <- system2("Rscript", prepare_cmd,
+                     stdout = file.path(iter_dir, "prepare.out"),
+                     stderr = file.path(iter_dir, "prepare.err")) == 0
   if (!prep_ok) {
     status_vec[b] <- "prepare_failed"
     next
@@ -248,7 +250,7 @@ for (b in seq_len(B)) {
   fit_cmd <- c(
     "--vanilla", "--no-save", "--no-restore",
     fit_script,
-    "--species", "Acris blanchardi",
+    "--species", "Acris_blanchardi",
     "--model_name", model_name,
     "--env_csv_dir", prepare_out,
     "--occ_csv", prepared_occ,
@@ -262,7 +264,9 @@ for (b in seq_len(B)) {
     fit_cmd <- c(fit_cmd, "--mask", mask_str)
   }
 
-  fit_ok <- system2("Rscript", fit_cmd, stdout = NULL, stderr = NULL) == 0
+  fit_ok <- system2("Rscript", fit_cmd,
+                    stdout = file.path(iter_dir, "fit.out"),
+                    stderr = file.path(iter_dir, "fit.err")) == 0
   if (!fit_ok) {
     status_vec[b] <- "fit_failed"
     next
