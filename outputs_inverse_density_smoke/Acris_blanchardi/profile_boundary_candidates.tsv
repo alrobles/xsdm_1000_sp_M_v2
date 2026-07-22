@@ -1,0 +1,2 @@
+model_name	vars	mask
+T2_T3_P3__bd_pd1_sigR1_sigL2_sigR02	T2,T3,P3	pd=Inf,sigrtil1=Inf,sigltil2=Inf,sigrtil2=-Inf
