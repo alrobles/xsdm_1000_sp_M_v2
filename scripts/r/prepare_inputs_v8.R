@@ -52,10 +52,12 @@ pa_exp_scale   <- as.numeric(parse_arg("--pa_exp_scale", "3"))
 pa_in_buffer   <- tolower(parse_arg("--pa_in_buffer", "false"))
 land_mask_mode <- tolower(parse_arg("--land_mask_mode", "all_years"))
 coastline_shp  <- parse_arg("--coastline_shp", "")
+bbox_only      <- tolower(parse_arg("--bbox_only", "false")) == "true"
+bbox_buffer    <- as.numeric(parse_arg("--bbox_buffer", "0.1"))
 
 if (is.null(species_name)) stop("--species is required", call. = FALSE)
 if (is.null(occ_csv))      stop("--occ_csv is required", call. = FALSE)
-if (is.null(ecoregion_shp) && !nzchar(m_shp)) stop("--ecoregion_shp or --m_shp is required", call. = FALSE)
+if (!bbox_only && is.null(ecoregion_shp) && !nzchar(m_shp)) stop("--ecoregion_shp or --m_shp is required (or use --bbox_only)", call. = FALSE)
 if (!land_mask_mode %in% c("all_years", "first_year")) {
   stop("--land_mask_mode must be 'all_years' or 'first_year'", call. = FALSE)
 }
@@ -68,6 +70,15 @@ if (!pa_in_buffer %in% c("true", "false")) {
 pa_in_buffer <- (pa_in_buffer == "true")
 if (!is.finite(pa_factor) || pa_factor <= 0) {
   stop("--pa_factor must be a positive number", call. = FALSE)
+}
+
+if (bbox_only) {
+  m_shp <- ""
+  m_buffer_shp <- ""
+  pa_in_buffer <- FALSE
+  buffer_m_arg <- "0"
+  selected_names <- "bounding_box"
+  tab <- integer(0)
 }
 
 years <- as.integer(strsplit(years_str, ",", fixed = TRUE)[[1]])
@@ -109,7 +120,22 @@ pres_vect <- vect(pres, geom = c("lon", "lat"), crs = "EPSG:4326")
 # ─────────────────────────────────────────────────────────────────────────────
 # 2. Build accessibility area M
 # ─────────────────────────────────────────────────────────────────────────────
-if (nzchar(m_shp)) {
+if (bbox_only) {
+  cat("Building accessibility area M as a bounding box around presences\n")
+  e <- as.vector(terra::ext(pres_vect))
+  dx <- e[2] - e[1]
+  dy <- e[4] - e[3]
+  if (!is.finite(dx) || !is.finite(dy) || dx <= 0 || dy <= 0) {
+    stop("Could not compute valid bounding box from presences", call. = FALSE)
+  }
+  e[1] <- e[1] - bbox_buffer * dx
+  e[2] <- e[2] + bbox_buffer * dx
+  e[3] <- e[3] - bbox_buffer * dy
+  e[4] <- e[4] + bbox_buffer * dy
+  M <- as.polygons(terra::ext(e), crs = "EPSG:4326")
+  cat(sprintf("Bounding box (buffer=%.0f%%): lon [%.3f, %.3f], lat [%.3f, %.3f]\n",
+              bbox_buffer * 100, e[1], e[2], e[3], e[4]))
+} else if (nzchar(m_shp)) {
   cat("Loading pre-computed accessibility polygon M from", m_shp, "\n")
   M <- vect(m_shp)
   if (!is.lonlat(M)) M <- project(M, "EPSG:4326")
