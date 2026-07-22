@@ -179,8 +179,8 @@ if (buffer_m_arg == "median") {
   if (!is.finite(buffer_m) || buffer_m <= 0) buffer_m <- 1000
 } else {
   buffer_m <- as.numeric(buffer_m_arg)
-  if (is.na(buffer_m) || buffer_m <= 0) {
-    stop("--buffer_m must be 'median' or a positive number of meters", call. = FALSE)
+  if (is.na(buffer_m) || buffer_m < 0) {
+    stop("--buffer_m must be 'median' or a non-negative number of meters", call. = FALSE)
   }
 }
 
