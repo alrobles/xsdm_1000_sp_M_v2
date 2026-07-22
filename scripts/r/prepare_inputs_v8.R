@@ -326,8 +326,9 @@ if (pa_method == "random") {
   }
   abs_vect <- vect(abs_all, geom = c("lon", "lat"), crs = "EPSG:4326")
   abs_vect <- project(abs_vect, target_crs)
-  # Keep only absences whose cell center falls inside M (not just touches boundary)
-  inside <- !is.na(terra::extract(M, abs_vect)[[1]])
+  # Keep only absences that fall inside M (and on land) using the raster mask.
+  # This is much faster than polygon extraction for large datasets.
+  inside <- !is.na(terra::extract(r_mask, abs_vect)[[1]])
   abs_all <- abs_all[inside, , drop = FALSE]
   if (nrow(abs_all) == 0) {
     stop("No dataset absences fall inside the accessibility polygon M", call. = FALSE)
