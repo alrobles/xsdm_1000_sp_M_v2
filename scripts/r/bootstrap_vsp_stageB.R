@@ -24,6 +24,7 @@ parse_arg <- function(flag, default = NULL) {
 
 method_dir    <- parse_arg("--method_dir")
 B             <- as.integer(parse_arg("--B", "10"))
+start_iter    <- as.integer(parse_arg("--start_iter", "1"))
 num_starts    <- as.integer(parse_arg("--num_starts", "50"))
 num_threads   <- as.integer(parse_arg("--num_threads", "4"))
 bioclim_dir   <- parse_arg("--bioclim_dir",
@@ -291,7 +292,7 @@ for (b in seq_len(B)) {
 
 # ─── Save parameter trace ─────────────────────────────────────────────────────
 out_df <- as.data.frame(param_mat)
-out_df$iteration <- seq_len(B)
+out_df$iteration <- seq_len(B) + start_iter - 1
 out_df$status <- status_vec
 out_df$loglik <- loglik_vec
 out_df$pBIC <- pbic_vec
