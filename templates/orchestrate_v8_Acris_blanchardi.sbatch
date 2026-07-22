@@ -14,11 +14,13 @@ set -euo pipefail
 REPO_ROOT="/home/a474r867/work/xsdm_1000_sp_M_v2"
 SPECIES="Acris blanchardi"
 OUTPUT_DIR="${OUTPUT_DIR:-${REPO_ROOT}/outputs}"
+NUM_STARTS="${NUM_STARTS:-100}"
+MAX_CONCURRENT="${MAX_CONCURRENT:-50}"
 
 export RESULTS_DIR="${OUTPUT_DIR}"
 export ENV_CSV_DIR="${OUTPUT_DIR}"
 
 "${REPO_ROOT}/scripts/orchestrate_v8.sh" \
   --species "${SPECIES}" \
-  --num_starts 100 \
-  --max_concurrent 50
+  --num_starts "${NUM_STARTS}" \
+  --max_concurrent "${MAX_CONCURRENT}"
