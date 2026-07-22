@@ -15,15 +15,36 @@ if (is.null(method_dir)) stop("--method_dir required", call. = FALSE)
 
 sp_dir <- file.path(method_dir, "Acris_blanchardi")
 models_dir <- file.path(sp_dir, "models")
+report_md  <- file.path(sp_dir, "model_selection_report.md")
 
-# Load original final model
-model_files <- list.files(models_dir, pattern = "\\.rds$", full.names = TRUE)
-fit <- NULL
-for (f in model_files) {
-  tmp <- tryCatch(readRDS(f), error = function(e) NULL)
-  if (!is.null(tmp) && !is.null(tmp$status) && tmp$status == "success" &&
-      !is.null(tmp$pBIC) && is.finite(tmp$pBIC)) {
-    if (is.null(fit) || isTRUE(tmp$pBIC < fit$pBIC)) fit <- tmp
+# Load original final model (same logic as bootstrap_vsp_stageB.R)
+model_name <- NULL
+if (file.exists(report_md)) {
+  lines <- readLines(report_md, warn = FALSE)
+  final_line <- grep("^- \\*\\*Final model:\\*\\*", lines, value = TRUE)
+  if (length(final_line) > 0) {
+    m <- regexpr("`([^`]+)`", final_line[1], perl = TRUE)
+    if (m[1] != -1) {
+      model_name <- substring(final_line[1], attr(m, "capture.start"),
+                             attr(m, "capture.start") + attr(m, "capture.length") - 1)
+    }
+  }
+}
+
+if (!is.null(model_name)) {
+  fit <- tryCatch(readRDS(file.path(models_dir, paste0(model_name, ".rds"))),
+                  error = function(e) NULL)
+}
+if (is.null(model_name) || is.null(fit) || is.null(fit$best_par)) {
+  # fallback: best pBIC
+  model_files <- list.files(models_dir, pattern = "\\.rds$", full.names = TRUE)
+  fit <- NULL
+  for (f in model_files) {
+    tmp <- tryCatch(readRDS(f), error = function(e) NULL)
+    if (!is.null(tmp) && !is.null(tmp$status) && tmp$status == "success" &&
+        !is.null(tmp$pBIC) && is.finite(tmp$pBIC)) {
+      if (is.null(fit) || isTRUE(tmp$pBIC < fit$pBIC)) fit <- tmp
+    }
   }
 }
 if (is.null(fit) || is.null(fit$best_par)) stop("No successful model found in ", models_dir, call. = FALSE)
