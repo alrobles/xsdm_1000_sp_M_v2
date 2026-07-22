@@ -1,0 +1,7 @@
+method,TSS,final_model,pBIC,n_pres,n_pseudoabs
+outputs,** 0.4738,** `T2_T3_P3__bd_pd1_sigL3` (pBIC = 756.9),756.9,336,319
+outputs_centroid,** 0.5074,** `T2_T3_P3__bd_sigR1` (pBIC = 737.3),737.3,336,319
+outputs_berti_sample,** 0.3270,** `T2_P1__bd_pd1_sigR2` (pBIC = 812.4),812.4,336,319
+outputs_inverse_density,** 0.5005,** `T2_T3_P3__bd_pd1_sigR1_sigL2` (pBIC = 741.4),741.4,336,319
+outputs_v7ring,** 0.7816,** `T3_P3` (pBIC = 694.4),694.4,341,641
+outputs_v6bbox,** 0.3471,** `T1_P3__bd_pd1_sigL1` (pBIC = 1544.1),1544.1,343,1294
