@@ -18,7 +18,7 @@ SP_SAFE=$(echo "${SPECIES}" | tr ' ' '_')
 OCC_DIR="/home/a474r867/scratch/xsdm/xsdm_occurrences"
 M_SHP="/home/a474r867/work/xsdm_1000_sp_M/outputs_M/Acris_blanchardi/gis/M.shp"
 M_BUFFER_SHP="/home/a474r867/work/xsdm_1000_sp_M/outputs_M/Acris_blanchardi/gis/M_buffer.shp"
-PA_IN_BUFFER="true"
+PA_IN_BUFFER="false"
 PA_FACTOR="1"
 OUTPUT_DIR="${REPO_ROOT}/outputs_berti_sample"
 

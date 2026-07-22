@@ -23,10 +23,10 @@ out_dir <- file.path(repo_root, "reports", "pa_sampling")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 methods <- c(
-  random                = "Random uniform in buffer ring",
-  centroid_exp          = "Distance to centroid (exponential) in buffer ring",
-  dataset               = "Dataset absences in buffer ring",
-  inverse_presence_density = "Inverse presence density in buffer ring"
+  random                = "Random uniform inside M_buffer",
+  centroid_exp          = "Distance to centroid (exponential) inside M_buffer",
+  dataset               = "Dataset absences inside M_buffer",
+  inverse_presence_density = "Inverse presence density inside M_buffer"
 )
 
 method_dirs <- c(
