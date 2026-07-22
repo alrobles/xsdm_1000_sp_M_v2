@@ -1,5 +1,6 @@
 #!/usr/bin/env Rscript
-# Plot presence (red) and pseudo-absence (blue) points inside M for each v8 method.
+# Plot presence (red) and pseudo-absence (blue) points inside the M_buffer ring
+# (M_buffer \ M) for each v8 method.
 # Usage:
 #   Rscript scripts/r/plot_pa_sampling_v8.R --repo_root /path/to/xsdm_1000_sp_M_v2 --species "Acris blanchardi"
 
@@ -22,10 +23,10 @@ out_dir <- file.path(repo_root, "reports", "pa_sampling")
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 methods <- c(
-  random                = "Random uniform inside M",
-  centroid_exp          = "Distance to centroid (exponential)",
-  dataset               = "Dataset absences inside M",
-  inverse_presence_density = "Inverse presence density"
+  random                = "Random uniform in buffer ring",
+  centroid_exp          = "Distance to centroid (exponential) in buffer ring",
+  dataset               = "Dataset absences in buffer ring",
+  inverse_presence_density = "Inverse presence density in buffer ring"
 )
 
 method_dirs <- c(
@@ -40,6 +41,7 @@ for (m in names(methods)) {
   sp_dir <- file.path(method_dirs[m], sp_safe)
   occ_file <- file.path(sp_dir, "occ_v7.csv")
   m_file   <- file.path(sp_dir, "gis", "M.shp")
+  m_buffer_file <- file.path(sp_dir, "gis", "M_buffer.shp")
 
   if (!file.exists(occ_file)) {
     cat("  skipping: missing", occ_file, "\n")
@@ -57,6 +59,16 @@ for (m in names(methods)) {
   if (crs(M) == "") crs(M) <- "EPSG:4326"
   M <- project(M, "EPSG:4326")
 
+  if (file.exists(m_buffer_file)) {
+    M_buffer <- vect(m_buffer_file)
+    if (crs(M_buffer) == "") crs(M_buffer) <- "EPSG:4326"
+    M_buffer <- project(M_buffer, "EPSG:4326")
+    has_buffer <- TRUE
+  } else {
+    M_buffer <- M
+    has_buffer <- FALSE
+  }
+
   pts <- vect(occ, geom = c("lon", "lat"), crs = "EPSG:4326")
 
   pres <- pts[pts$presence == 1, ]
@@ -69,13 +81,18 @@ for (m in names(methods)) {
   png(png_file, width = 1200, height = 900, res = 120)
 
   par(mar = c(2, 2, 3, 0.5))
-  plot(M, col = "lightyellow", border = "gray50", lwd = 0.5,
+  # Outer buffered M
+  plot(M_buffer, col = "lightyellow", border = "gray50", lwd = 0.5,
        main = paste0(methods[m], "\n(n_pres = ", n_pres, ", n_abs = ", n_abs, ")"),
        axes = FALSE)
+  # Inner M
+  if (has_buffer) {
+    plot(M, add = TRUE, col = "white", border = "red", lwd = 0.5)
+  }
+
   if (n_abs > 0)  points(abs,  col = "blue", cex = 0.35, pch = 16)
   if (n_pres > 0) points(pres, col = "red",  cex = 0.45, pch = 16)
 
-  # small legend
   legend("topright", legend = c("presence", "pseudo-absence"),
          col = c("red", "blue"), pch = 16, cex = 0.9, bg = "white")
 
