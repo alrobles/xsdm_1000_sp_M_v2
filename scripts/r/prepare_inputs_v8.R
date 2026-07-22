@@ -4,10 +4,14 @@
 #   2. Overlay with Ecoregions2017 and keep ecoregions accounting for >=90% of presences.
 #   3. Dissolve selected ecoregions -> M.
 #   4. Buffer M by median nearest-neighbour distance of presence points.
-#   5. Sample pseudo-absences INSIDE M using one of two strategies:
-#        - random: uniform random within M
-#        - centroid: probability proportional to distance from the centroid of M
-#          (farther from the centroid = higher probability, so edges get more PAs)
+#   5. Build accessibility area M and (optionally) a buffered M_buffer.
+#      Sample pseudo-absences inside M_buffer or in the buffer ring
+#      (M_buffer \ M) using one of the strategies:
+#        - random: uniform random within the chosen mask
+#        - centroid: probability proportional to distance from the centroid
+#        - centroid_exp: probability increasing exponentially away from the centroid
+#        - inverse_presence_density: probability inverse to presence-point density
+#        - dataset: use absence rows from the occurrence CSV that fall in the mask
 #      Number of pseudo-absences = pa_factor * n_presences (pa_factor defaults to 1).
 #   6. Extract 6 bioclim variables x 41 years at presences + pseudo-absences.
 #   7. Write CSVs per variable (same format as xsdm_model_selection_v6.R),
@@ -35,6 +39,7 @@ species_name   <- parse_arg("--species")
 occ_csv        <- parse_arg("--occ_csv")
 ecoregion_shp  <- parse_arg("--ecoregion_shp")
 m_shp          <- parse_arg("--m_shp", "")
+m_buffer_shp   <- parse_arg("--m_buffer_shp", "")
 bioclim_dir    <- parse_arg("--bioclim_dir",
                             "/home/a474r867/scratch/era5/era5-land/era5_bioclim/bioclim")
 output_dir     <- parse_arg("--output_dir", "/home/a474r867/work/xsdm_1000_sp_M_v2/outputs_v8")
@@ -44,6 +49,7 @@ seed           <- as.integer(parse_arg("--seed", "42"))
 buffer_m_arg   <- parse_arg("--buffer_m", "median")
 pa_method      <- tolower(parse_arg("--pa_method", "centroid"))
 pa_exp_scale   <- as.numeric(parse_arg("--pa_exp_scale", "3"))
+pa_in_buffer   <- tolower(parse_arg("--pa_in_buffer", "false"))
 land_mask_mode <- tolower(parse_arg("--land_mask_mode", "all_years"))
 coastline_shp  <- parse_arg("--coastline_shp", "")
 
@@ -56,6 +62,10 @@ if (!land_mask_mode %in% c("all_years", "first_year")) {
 if (!pa_method %in% c("random", "centroid", "centroid_exp", "dataset", "inverse_presence_density")) {
   stop("--pa_method must be 'random', 'centroid', 'centroid_exp', 'dataset' or 'inverse_presence_density'", call. = FALSE)
 }
+if (!pa_in_buffer %in% c("true", "false")) {
+  stop("--pa_in_buffer must be 'true' or 'false'", call. = FALSE)
+}
+pa_in_buffer <- (pa_in_buffer == "true")
 if (!is.finite(pa_factor) || pa_factor <= 0) {
   stop("--pa_factor must be a positive number", call. = FALSE)
 }
@@ -112,6 +122,18 @@ if (nzchar(m_shp)) {
   n_pres <- nrow(pres)
   if (n_pres < 3) stop(sprintf("Only %d presences inside provided M", n_pres), call. = FALSE)
   cat(sprintf("Presences retained inside provided M: %d\n", n_pres))
+} else if (nzchar(m_buffer_shp) && !pa_in_buffer) {
+  cat("Loading pre-computed buffered accessibility polygon M_buffer from", m_buffer_shp, "\n")
+  M <- vect(m_buffer_shp)
+  if (!is.lonlat(M)) M <- project(M, "EPSG:4326")
+  selected_names <- if ("ECO_NAME" %in% names(M)) paste(unique(as.character(M$ECO_NAME)), collapse = "; ") else NA_character_
+  tab <- integer(0)
+
+  inside_M <- !is.na(terra::extract(M, pres_vect)[[1]])
+  pres <- pres[inside_M, , drop = FALSE]
+  n_pres <- nrow(pres)
+  if (n_pres < 3) stop(sprintf("Only %d presences inside provided M_buffer", n_pres), call. = FALSE)
+  cat(sprintf("Presences retained inside provided M_buffer: %d\n", n_pres))
 } else {
   eco <- vect(ecoregion_shp)
   if (!is.lonlat(eco)) eco <- project(eco, "EPSG:4326")
@@ -165,6 +187,10 @@ if (nzchar(m_shp)) {
   M <- aggregate(eco_sel, by = "group", dissolve = TRUE)
 }
 
+if (pa_in_buffer && !nzchar(m_shp) && !nzchar(m_buffer_shp)) {
+  stop("--pa_in_buffer=true requires --m_shp or --m_buffer_shp to define the inner M", call. = FALSE)
+}
+
 # Standardize M to a clean EPSG:4326 CRS so that downstream raster/vector
 # operations (crop, distance, spatSample) do not fail on CRS-string mismatches.
 if (crs(M) == "") crs(M) <- "EPSG:4326"
@@ -179,20 +205,26 @@ diag(dist_mat) <- Inf
 nnd <- apply(dist_mat, 1, min, na.rm = TRUE)
 median_nnd <- median(nnd, na.rm = TRUE)
 
-if (buffer_m_arg == "median") {
-  buffer_m <- median_nnd
-  if (!is.finite(buffer_m) || buffer_m <= 0) buffer_m <- 1000
+if (nzchar(m_buffer_shp)) {
+  cat("Loading pre-computed M_buffer from", m_buffer_shp, "\n")
+  M_buffer <- vect(m_buffer_shp)
+  if (!is.lonlat(M_buffer)) M_buffer <- project(M_buffer, "EPSG:4326")
+  buffer_m <- 0
 } else {
-  buffer_m <- as.numeric(buffer_m_arg)
-  if (is.na(buffer_m) || buffer_m < 0) {
-    stop("--buffer_m must be 'median' or a non-negative number of meters", call. = FALSE)
+  if (buffer_m_arg == "median") {
+    buffer_m <- median_nnd
+    if (!is.finite(buffer_m) || buffer_m <= 0) buffer_m <- 1000
+  } else {
+    buffer_m <- as.numeric(buffer_m_arg)
+    if (is.na(buffer_m) || buffer_m < 0) {
+      stop("--buffer_m must be 'median' or a non-negative number of meters", call. = FALSE)
+    }
   }
+  M_buffer <- if (buffer_m == 0) M else project(buffer(M, width = buffer_m), "EPSG:4326")
 }
 
-M_buffer <- if (buffer_m == 0) M else project(buffer(M, width = buffer_m), "EPSG:4326")
-
 # Clip to coastline/land polygon if provided (only when M is computed from scratch)
-if (!nzchar(m_shp) && nzchar(coastline_shp) && file.exists(coastline_shp)) {
+if (!nzchar(m_shp) && !nzchar(m_buffer_shp) && nzchar(coastline_shp) && file.exists(coastline_shp)) {
   cat("Clipping M/M_buffer to coastline:", coastline_shp, "\n")
   coast <- vect(coastline_shp)
   if (!is.lonlat(coast)) coast <- project(coast, "EPSG:4326")
@@ -200,10 +232,12 @@ if (!nzchar(m_shp) && nzchar(coastline_shp) && file.exists(coastline_shp)) {
   M_buffer <- terra::intersect(M_buffer, coast)
 }
 
-cat(sprintf("Median NND = %.1f m -> buffer = %.1f m\n", median_nnd, buffer_m))
+# Decide where to sample pseudo-absences
+cat(sprintf("Median NND = %.1f m -> buffer = %.1f m (pa_in_buffer=%s)\n",
+            median_nnd, buffer_m, pa_in_buffer))
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 5. Sample pseudo-absences INSIDE M (land only)
+# 5. Sample pseudo-absences inside the chosen mask (land only)
 # ─────────────────────────────────────────────────────────────────────────────
 set.seed(seed + n_pres)
 n_pa <- round(pa_factor * n_pres)
@@ -226,7 +260,15 @@ target_crs <- crs(rast(base_tif))
 M <- project(M, target_crs)
 M_buffer <- project(M_buffer, target_crs)
 pres_vect <- project(pres_vect, target_crs)
-pa_mask <- M
+
+# Pseudo-absence mask: either the full buffered M or the buffer ring (M_buffer \ M)
+if (pa_in_buffer) {
+  cat("Pseudo-absence mask: buffer ring (M_buffer \\ M)\n")
+  pa_mask <- terra::erase(M_buffer, M)
+} else {
+  cat("Pseudo-absence mask: full buffered M (M_buffer)\n")
+  pa_mask <- M_buffer
+}
 
 r_mask <- rast(base_tif)
 r_mask <- terra::crop(r_mask, pa_mask, mask = TRUE)
@@ -267,7 +309,7 @@ pa_sample_size <- if (land_mask_mode == "first_year" && pa_method != "dataset") 
 }
 
 if (pa_method == "random") {
-  cat(sprintf("Sampling %d pseudo-absences (target %d) uniformly at random inside M\n", pa_sample_size, pa_target))
+  cat(sprintf("Sampling %d pseudo-absences (target %d) uniformly at random inside pseudo-absence mask\n", pa_sample_size, pa_target))
   pa_vect <- tryCatch(
     terra::spatSample(r_mask, size = pa_sample_size, method = "random", as.points = TRUE,
                       values = FALSE, na.rm = TRUE, exhaustive = FALSE),
@@ -315,7 +357,7 @@ if (pa_method == "random") {
     error = function(e) NULL
   )
 } else if (pa_method == "dataset") {
-  cat(sprintf("Using %d pseudo-absences already sampled in the dataset, filtered to M\n", pa_target))
+  cat(sprintf("Using %d pseudo-absences already sampled in the dataset, filtered to pseudo-absence mask\n", pa_target))
   if (!"presence" %in% names(occ)) {
     stop("occurrence CSV must have a presence/occ column for pa_method='dataset'", call. = FALSE)
   }
@@ -326,12 +368,12 @@ if (pa_method == "random") {
   }
   abs_vect <- vect(abs_all, geom = c("lon", "lat"), crs = "EPSG:4326")
   abs_vect <- project(abs_vect, target_crs)
-  # Keep only absences that fall inside M (and on land) using the raster mask.
+  # Keep only absences that fall inside the pseudo-absence mask (and on land) using the raster mask.
   # This is much faster than polygon extraction for large datasets.
   inside <- !is.na(terra::extract(r_mask, abs_vect)[[1]])
   abs_all <- abs_all[inside, , drop = FALSE]
   if (nrow(abs_all) == 0) {
-    stop("No dataset absences fall inside the accessibility polygon M", call. = FALSE)
+    stop("No dataset absences fall inside the pseudo-absence mask", call. = FALSE)
   }
   set.seed(seed + n_pres)
   if (nrow(abs_all) > n_pa) {
@@ -347,7 +389,7 @@ if (pa_method == "random") {
 
 if (pa_method != "dataset") {
   if (is.null(pa_vect) || nrow(pa_vect) == 0) {
-    stop("Could not sample any pseudo-absences inside M on land.", call. = FALSE)
+    stop("Could not sample any pseudo-absences inside the pseudo-absence mask on land.", call. = FALSE)
   }
   pa <- as.data.frame(crds(pa_vect))
   names(pa) <- c("lon", "lat")

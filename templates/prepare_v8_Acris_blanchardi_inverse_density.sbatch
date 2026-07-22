@@ -17,6 +17,9 @@ SPECIES="Acris blanchardi"
 SP_SAFE=$(echo "${SPECIES}" | tr ' ' '_')
 OCC_DIR="/home/a474r867/scratch/xsdm/xsdm_occurrences"
 M_SHP="/home/a474r867/work/xsdm_1000_sp_M/outputs_M/Acris_blanchardi/gis/M.shp"
+M_BUFFER_SHP="/home/a474r867/work/xsdm_1000_sp_M/outputs_M/Acris_blanchardi/gis/M_buffer.shp"
+PA_IN_BUFFER="false"
+PA_FACTOR="1"
 OUTPUT_DIR="${REPO_ROOT}/outputs_inverse_density"
 
 mkdir -p "${REPO_ROOT}/logs"
@@ -37,8 +40,10 @@ apptainer exec --cleanenv \
     --species "${SPECIES}" \
     --occ_csv "${OCC_CSV}" \
     --m_shp "${M_SHP}" \
+    --m_buffer_shp "${M_BUFFER_SHP}" \
     --output_dir "${OUTPUT_DIR}" \
-    --pa_factor 1 \
+    --pa_factor "${PA_FACTOR}" \
+    --pa_in_buffer "${PA_IN_BUFFER}" \
     --pa_method inverse_presence_density \
     --land_mask_mode first_year \
     --buffer_m 0 \
