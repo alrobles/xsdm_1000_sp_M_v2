@@ -165,6 +165,11 @@ if (nzchar(m_shp)) {
   M <- aggregate(eco_sel, by = "group", dissolve = TRUE)
 }
 
+# Standardize M to a clean EPSG:4326 CRS so that downstream raster/vector
+# operations (crop, distance, spatSample) do not fail on CRS-string mismatches.
+if (crs(M) == "") crs(M) <- "EPSG:4326"
+M <- project(M, "EPSG:4326")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Buffer (m): median NND by default, or a fixed value (e.g. 100 km)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -184,7 +189,7 @@ if (buffer_m_arg == "median") {
   }
 }
 
-M_buffer <- if (buffer_m == 0) M else buffer(M, width = buffer_m)
+M_buffer <- if (buffer_m == 0) M else project(buffer(M, width = buffer_m), "EPSG:4326")
 
 # Clip to coastline/land polygon if provided (only when M is computed from scratch)
 if (!nzchar(m_shp) && nzchar(coastline_shp) && file.exists(coastline_shp)) {
@@ -200,8 +205,6 @@ cat(sprintf("Median NND = %.1f m -> buffer = %.1f m\n", median_nnd, buffer_m))
 # ─────────────────────────────────────────────────────────────────────────────
 # 5. Sample pseudo-absences INSIDE M (land only)
 # ─────────────────────────────────────────────────────────────────────────────
-pa_mask <- M
-
 set.seed(seed + n_pres)
 n_pa <- round(pa_factor * n_pres)
 if (n_pa < 1) n_pa <- 1L
@@ -216,6 +219,15 @@ base_tif <- file.path(bioclim_dir, as.character(years[1]),
 if (!file.exists(base_tif)) {
   stop("Cannot build land mask; missing: ", base_tif, call. = FALSE)
 }
+
+# Use the CRS of the reference raster as the authoritative target CRS so that
+# M, presence points and all rasters share the exact same CRS string.
+target_crs <- crs(rast(base_tif))
+M <- project(M, target_crs)
+M_buffer <- project(M_buffer, target_crs)
+pres_vect <- project(pres_vect, target_crs)
+pa_mask <- M
+
 r_mask <- rast(base_tif)
 r_mask <- terra::crop(r_mask, pa_mask, mask = TRUE)
 r_mask <- ifel(!is.na(r_mask), 1, NA)
