@@ -274,15 +274,15 @@ for (b in seq_len(B)) {
 
   rds_file <- file.path(prepare_out, "Acris_blanchardi", "models", paste0(model_name, ".rds"))
   fit_b <- tryCatch(readRDS(rds_file), error = function(e) NULL)
-  if (is.null(fit_b) || is.null(fit_b$best$par)) {
+  if (is.null(fit_b) || is.null(fit_b$best_par) || fit_b$status != "success") {
     status_vec[b] <- "read_failed"
     next
   }
 
-  param_mat[b, names(fit_b$best$par)] <- as.vector(fit_b$best$par)
-  loglik_vec[b] <- fit_b$best$loglik
+  param_mat[b, names(fit_b$best_par)] <- as.vector(fit_b$best_par)
+  loglik_vec[b] <- fit_b$loglik
   n_free <- if (is.null(mask)) xsdm::num_par(length(vars)) else xsdm::num_par(length(vars)) - length(mask)
-  pbic_vec[b] <- -2 * fit_b$best$loglik + n_free * log(nrow(occ_b))
+  pbic_vec[b] <- -2 * fit_b$loglik + n_free * log(nrow(occ_b))
   status_vec[b] <- "success"
 
   # Clean up heavy per-iteration files, keep the CSVs if needed for debug
