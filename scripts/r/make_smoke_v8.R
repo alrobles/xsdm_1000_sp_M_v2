@@ -6,7 +6,7 @@
 #                                     --dst_dir outputs_smoke/Acris_blanchardi \
 #                                     --frac 0.1 --seed 42
 
-library(terra)
+# Base R only
 
 args <- commandArgs(trailingOnly = TRUE)
 
