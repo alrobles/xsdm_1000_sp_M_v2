@@ -325,6 +325,7 @@ if (pa_method == "random") {
     stop("No absence rows (presence=0) found in occurrence CSV", call. = FALSE)
   }
   abs_vect <- vect(abs_all, geom = c("lon", "lat"), crs = "EPSG:4326")
+  abs_vect <- project(abs_vect, target_crs)
   # Keep only absences whose cell center falls inside M (not just touches boundary)
   inside <- !is.na(terra::extract(M, abs_vect)[[1]])
   abs_all <- abs_all[inside, , drop = FALSE]
@@ -340,6 +341,7 @@ if (pa_method == "random") {
   pa$presence <- 0L
   # placeholder so code below can build pts
   pa_vect <- vect(pa, geom = c("lon", "lat"), crs = "EPSG:4326")
+  pa_vect <- project(pa_vect, target_crs)
 }
 
 if (pa_method != "dataset") {
@@ -363,7 +365,7 @@ occ_v7 <- rbind(
 )
 occ_v7$presence <- as.integer(occ_v7$presence)
 
-pts <- vect(occ_v7, geom = c("lon", "lat"), crs = "EPSG:4326")
+pts <- vect(occ_v7, geom = c("lon", "lat"), crs = target_crs)
 
 env_list <- list()
 var_labels <- character()
