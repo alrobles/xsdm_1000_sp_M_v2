@@ -93,7 +93,7 @@ build_env_array <- function(occ_df, env_list, vars, years) {
     r <- env_list[[v]]
     vals <- terra::extract(r, pts)
     if (is.matrix(vals)) vals <- as.data.frame(vals)
-    vals <- vals[, -1, drop = FALSE]  # remove ID column
+    if ("ID" %in% names(vals)) vals <- vals[, -1, drop = FALSE]  # remove ID column
     if (ncol(vals) != n_time) {
       stop("Extracted variable ", v, " has ", ncol(vals), " columns, expected ", n_time)
     }
