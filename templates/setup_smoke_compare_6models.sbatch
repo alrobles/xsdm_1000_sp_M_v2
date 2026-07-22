@@ -16,8 +16,6 @@ SIF="${HOME}/geospatial-rserver/xsdm_latest.sif"
 
 cd "${REPO_ROOT}"
 
-module load R || true
-
 echo "=== Creating 10% smoke copies for all six methods ==="
 
 for src_dir in outputs outputs_centroid outputs_berti_sample outputs_inverse_density outputs_v7ring outputs_v6bbox; do
@@ -34,11 +32,15 @@ for src_dir in outputs outputs_centroid outputs_berti_sample outputs_inverse_den
   # Clean old smoke dir to avoid stale fits/plots
   rm -rf "${dst_path}"
 
-  Rscript "${REPO_ROOT}/scripts/r/make_smoke_v8.R" \
-    --src_dir "${src_path}" \
-    --dst_dir "${dst_path}" \
-    --frac 0.1 \
-    --seed 42
+  apptainer exec --cleanenv \
+    --bind "${REPO_ROOT}:${REPO_ROOT}" \
+    --bind "/tmp:/tmp" \
+    "${SIF}" \
+    Rscript "${REPO_ROOT}/scripts/r/make_smoke_v8.R" \
+      --src_dir "${src_path}" \
+      --dst_dir "${dst_path}" \
+      --frac 0.1 \
+      --seed 42
   echo "Smoke copy ready: ${dst_dir}"
 done
 
