@@ -133,8 +133,10 @@ if (bbox_only) {
   e[3] <- e[3] - bbox_buffer * dy
   e[4] <- e[4] + bbox_buffer * dy
   M <- as.polygons(terra::ext(e), crs = "EPSG:4326")
-  cat(sprintf("Bounding box (buffer=%.0f%%): lon [%.3f, %.3f], lat [%.3f, %.3f]\n",
-              bbox_buffer * 100, e[1], e[2], e[3], e[4]))
+  n_pres <- nrow(pres)
+  if (n_pres < 3) stop(sprintf("Only %d presences inside bounding box for %s", n_pres, species_name), call. = FALSE)
+  cat(sprintf("Bounding box (buffer=%.0f%%): lon [%.3f, %.3f], lat [%.3f, %.3f], n_pres=%d\n",
+              bbox_buffer * 100, e[1], e[2], e[3], e[4], n_pres))
 } else if (nzchar(m_shp)) {
   cat("Loading pre-computed accessibility polygon M from", m_shp, "\n")
   M <- vect(m_shp)
