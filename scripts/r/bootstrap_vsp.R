@@ -107,18 +107,41 @@ models_dir  <- file.path(sp_dir, "models")
 model_files <- list.files(models_dir, pattern = "\\.rds$", full.names = TRUE)
 if (length(model_files) == 0) stop("No model RDS found in ", models_dir, call. = FALSE)
 
-# Prefer the model reported as final; otherwise take the first successful one
-fit <- NULL
-best_idx <- integer(0)
-for (i in seq_along(model_files)) {
-  tmp <- tryCatch(readRDS(model_files[i]), error = function(e) NULL)
-  if (!is.null(tmp) && !is.null(tmp$status) && tmp$status == "success") {
-    if (is.null(fit) || (!is.null(tmp$pBIC) && tmp$pBIC < fit$pBIC)) {
-      fit <- tmp
-      best_idx <- i
+# Prefer the model reported as final by the model-selection report
+report_md <- file.path(sp_dir, "model_selection_report.md")
+model_name <- NULL
+if (file.exists(report_md)) {
+  lines <- readLines(report_md, warn = FALSE)
+  final_line <- grep("^- \\*\\*Final model:\\*\\*", lines, value = TRUE)
+  if (length(final_line) > 0) {
+    m <- regexpr("`([^`]+)`", final_line[1], perl = TRUE)
+    if (m[1] != -1) {
+      model_name <- substring(final_line[1], attr(m, "capture.start"), attr(m, "capture.start") + attr(m, "capture.length") - 1)
     }
   }
 }
+
+if (!is.null(model_name)) {
+  model_rds <- file.path(models_dir, paste0(model_name, ".rds"))
+  if (file.exists(model_rds)) {
+    fit <- tryCatch(readRDS(model_rds), error = function(e) NULL)
+  }
+}
+
+if (is.null(model_name) || is.null(fit) || is.null(fit$status) || fit$status != "success") {
+  # Fallback: first successful model with finite pBIC
+  fit <- NULL
+  for (i in seq_along(model_files)) {
+    tmp <- tryCatch(readRDS(model_files[i]), error = function(e) NULL)
+    if (!is.null(tmp) && !is.null(tmp$status) && tmp$status == "success" &&
+        !is.null(tmp$pBIC) && is.finite(tmp$pBIC)) {
+      if (is.null(fit) || isTRUE(tmp$pBIC < fit$pBIC)) {
+        fit <- tmp
+      }
+    }
+  }
+}
+
 if (is.null(fit)) stop("No successful model found in ", models_dir, call. = FALSE)
 
 model_name <- fit$model_name
