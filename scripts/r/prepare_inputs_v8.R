@@ -523,6 +523,9 @@ pa <- occ_v7[occ_v7$presence == 0, c("lon", "lat", "presence"), drop = FALSE]
 # ─────────────────────────────────────────────────────────────────────────────
 # 7. Save M, M_buffer and occurrence file
 # ─────────────────────────────────────────────────────────────────────────────
+# Remove stale/corrupt shapefile components so writeVector can create fresh files.
+unlink(list.files(gis_dir, pattern = "^(M|M_buffer)\\.(shp|shx|dbf|prj|cpg)$",
+                  full.names = TRUE, ignore.case = TRUE))
 writeVector(M,       file.path(gis_dir, "M.shp"),       overwrite = TRUE)
 writeVector(M_buffer, file.path(gis_dir, "M_buffer.shp"), overwrite = TRUE)
 write.csv(occ_v7, file.path(sp_dir, "occ_v7.csv"), row.names = FALSE)
