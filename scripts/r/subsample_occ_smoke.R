@@ -30,10 +30,12 @@ if (!file.exists(file.path(source_dir, "occ_v7.csv"))) {
 
 set.seed(seed)
 
+in_place <- normalizePath(source_dir, mustWork = FALSE) == normalizePath(target_dir, mustWork = FALSE)
+
 dir.create(target_dir, recursive = TRUE, showWarnings = FALSE)
 gis_source <- file.path(source_dir, "gis")
 gis_target <- file.path(target_dir, "gis")
-if (dir.exists(gis_source)) {
+if (dir.exists(gis_source) && !in_place) {
   dir.create(gis_target, recursive = TRUE, showWarnings = FALSE)
   file.copy(list.files(gis_source, full.names = TRUE), gis_target, overwrite = TRUE)
 }
@@ -69,6 +71,6 @@ for (f in env_files) {
   write.csv(df_smoke, file.path(target_dir, f), row.names = FALSE)
 }
 
-# Copy meta file if present
+# Copy meta file if present (skip when subsampling in place)
 meta_src <- file.path(source_dir, "prepare_meta.csv")
-if (file.exists(meta_src)) file.copy(meta_src, file.path(target_dir, "prepare_meta.csv"), overwrite = TRUE)
+if (file.exists(meta_src) && !in_place) file.copy(meta_src, file.path(target_dir, "prepare_meta.csv"), overwrite = TRUE)
