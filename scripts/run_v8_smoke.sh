@@ -34,6 +34,18 @@ if [ ! -f "$OCC_CSV" ]; then
   exit 1
 fi
 
+# Look for a pre-computed accessibility polygon M to avoid re-running ecoregion overlay.
+M_SHP="${M_SHP:-}"
+if [ -z "$M_SHP" ]; then
+  for cand in \
+    "${REPO_ROOT}/outputs_centroid/${SP_SAFE}/gis/M.shp" \
+    "${REPO_ROOT}/outputs_M/${SP_SAFE}/gis/M.shp" \
+    "/home/a474r867/work/xsdm_1000_sp_M/outputs_M/${SP_SAFE}/gis/M.shp" \
+    "/home/a474r867/work/xsdm_1000_sp/outputs/${SP_SAFE}/gis/M.shp"; do
+    if [ -f "$cand" ]; then M_SHP="$cand"; break; fi
+  done
+fi
+
 # Derive a clean output dir name from method and buffer
 METHOD_DIR="$(echo "${PA_METHOD}_${BUFFER_M}" | tr ' ' '_' | tr '/' '_' | sed 's/__*/_/g; s/^_//; s/_$//')"
 OUTPUT_DIR="${REPO_ROOT}/outputs_${METHOD_DIR}"
@@ -65,17 +77,25 @@ echo "==================================================="
 
 # 1. Prepare full v8 inputs (M + M_buffer + pseudo-absences)
 echo "[1/5] Preparing v8 inputs..."
-run_r "${REPO_ROOT}/scripts/r/prepare_inputs_v8.R" \
-  --species "$SPECIES" \
-  --occ_csv "$OCC_CSV" \
-  --ecoregion_shp "$ECO_SHP" \
-  --bioclim_dir "$BIOCLIM_DIR" \
-  --output_dir "$OUTPUT_DIR" \
-  --pa_factor "$PA_FACTOR" \
-  --pa_method "$PA_METHOD" \
-  --pa_in_buffer "false" \
-  --buffer_m "$BUFFER_M" \
+PREPARE_ARGS=(
+  --species "$SPECIES"
+  --occ_csv "$OCC_CSV"
+  --bioclim_dir "$BIOCLIM_DIR"
+  --output_dir "$OUTPUT_DIR"
+  --pa_factor "$PA_FACTOR"
+  --pa_method "$PA_METHOD"
+  --pa_in_buffer "false"
+  --buffer_m "$BUFFER_M"
   --land_mask_mode "$LAND_MASK_MODE"
+)
+if [ -n "$M_SHP" ] && [ -f "$M_SHP" ]; then
+  echo "Using pre-computed M: $M_SHP"
+  PREPARE_ARGS+=(--m_shp "$M_SHP")
+else
+  echo "No pre-computed M found; building M from ecoregions (slower)."
+  PREPARE_ARGS+=(--ecoregion_shp "$ECO_SHP")
+fi
+run_r "${REPO_ROOT}/scripts/r/prepare_inputs_v8.R" "${PREPARE_ARGS[@]}"
 
 # 2. Subsample to smoke-test fraction in place
 echo "[2/5] Subsampling to ${PCT} of prepared occurrences..."
