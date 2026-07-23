@@ -242,10 +242,17 @@ if (nzchar(m_buffer_shp)) {
   if (buffer_m_arg == "median") {
     buffer_m <- median_nnd
     if (!is.finite(buffer_m) || buffer_m <= 0) buffer_m <- 1000
+  } else if (grepl("^[0-9.]+x_median$", buffer_m_arg, ignore.case = TRUE)) {
+    scale_factor <- as.numeric(sub("x_median$", "", buffer_m_arg, ignore.case = TRUE))
+    if (is.na(scale_factor) || scale_factor < 0) {
+      stop("--buffer_m scale factor must be a non-negative number (e.g. '2x_median')", call. = FALSE)
+    }
+    buffer_m <- scale_factor * median_nnd
+    if (!is.finite(buffer_m) || buffer_m <= 0) buffer_m <- 1000 * scale_factor
   } else {
     buffer_m <- as.numeric(buffer_m_arg)
     if (is.na(buffer_m) || buffer_m < 0) {
-      stop("--buffer_m must be 'median' or a non-negative number of meters", call. = FALSE)
+      stop("--buffer_m must be 'median', '<scale>x_median', or a non-negative number of meters", call. = FALSE)
     }
   }
   M_buffer <- if (buffer_m == 0) M else project(buffer(M, width = buffer_m), "EPSG:4326")

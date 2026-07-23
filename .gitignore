@@ -66,6 +66,15 @@ docs/species_plots/**/*.pdf
 !/outputs_inverse_density/*/plots/habitat_suitability_binary_v7.png
 !/outputs_inverse_density/*/plots/bic_vs_aic_v7.png
 
+/outputs_centroid_*/**
+!/outputs_centroid_*/*/
+!/outputs_centroid_*/**/model_selection_report.md
+!/outputs_centroid_*/**/plots/
+!/outputs_centroid_*/**/plots/profile_likelihood_v7.png
+!/outputs_centroid_*/**/plots/habitat_suitability_v7.png
+!/outputs_centroid_*/**/plots/habitat_suitability_binary_v7.png
+!/outputs_centroid_*/**/plots/bic_vs_aic_v7.png
+
 # OS
 .DS_Store
 Thumbs.db
