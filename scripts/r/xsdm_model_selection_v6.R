@@ -33,6 +33,12 @@ suppressPackageStartupMessages({
   library(numDeriv)
 })
 
+# Silence progressr/furrr progress bars in non-interactive runs
+if (requireNamespace("progressr", quietly = TRUE)) {
+  progressr::handlers("void")
+}
+options(progressr.enable = FALSE)
+
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — CLI parsing
 # ═══════════════════════════════════════════════════════════════════════════
