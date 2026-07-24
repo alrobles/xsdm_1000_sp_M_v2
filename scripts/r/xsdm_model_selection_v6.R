@@ -59,6 +59,7 @@ output_dir    <- parse_arg("--output_dir",
 years_str     <- parse_arg("--years", paste(1980:2020, collapse = ","))
 num_starts    <- as.integer(parse_arg("--num_starts", "1500"))
 num_threads   <- as.integer(parse_arg("--num_threads", "4"))
+skip_profile  <- "--skip_profile" %in% args
 
 years <- as.integer(strsplit(years_str, ",")[[1]])
 if (is.null(species_name)) stop("--species is required", call. = FALSE)
@@ -1110,99 +1111,107 @@ rpt("")
 # SECTION 12 — Profile likelihood of final model
 # ═══════════════════════════════════════════════════════════════════════════
 
-rpt_h2("Phase 7: Profile likelihood")
-rpt("")
-
 best_fit  <- L3[[M_Omega]]
 best_full <- best_fit$result$best$par
 best_mask <- best_fit$mask
 best_bio  <- math_to_bio(best_full)
 
-rpt(sprintf("**Best-fit parameters (biological scale):**"))
-rpt("")
-for (pi in seq_along(best_bio)) {
-  rpt(sprintf("- `%s` = %.6g", names(best_bio)[pi], best_bio[pi]))
-}
-rpt("")
-
-if (!is.null(best_mask)) {
-  free_names <- setdiff(names(best_full), names(best_mask))
-  optim_free <- best_full[free_names]
-} else {
-  optim_free <- best_full
-  free_names <- names(best_full)
-}
-
-# Compute Hessian for adaptive profiling
-hess <- tryCatch(
-  numDeriv::hessian(
-    func = function(par_free) {
-      names(par_free) <- free_names
-      loglik_math(par_free, env_dat = best_fit$env_dat, occ = best_fit$occ,
-                  mask = best_mask, negative = TRUE, num_threads = 1L)
-    },
-    x = optim_free
-  ),
-  error = function(e) diag(length(optim_free))
-)
-
-profiles <- list()
-for (pname in free_names) {
-  cat(sprintf("  Profile %s: ", pname))
-  profiles[[pname]] <- adaptive_profile(
-    pname, optim_free, best_fit$env_dat, best_fit$occ,
-    best_mask, hess, num_threads)
-  cat(if (!is.null(profiles[[pname]])) "OK\n" else "FAILED\n")
-}
-
-# Arc check
-optim_ll <- best_fit$loglik
+profiles    <- list()
 arc_results <- list()
-arc_row <- data.frame(species = species_name, model = M_Omega,
-                      stringsAsFactors = FALSE)
-all_pass <- TRUE
+arc_row     <- data.frame(species = species_name, model = M_Omega,
+                          stringsAsFactors = FALSE)
 
-rpt("### Arc check results")
-rpt("")
-rpt("| Parameter | Pass? | Reason |")
-rpt("|-----------|-------|--------|")
+if (skip_profile) {
+  rpt_h2("Phase 7: Profile likelihood")
+  rpt("")
+  rpt("*Profile likelihood skipped by --skip_profile; proceeding to save and map.*")
+  rpt("")
+} else {
+  rpt_h2("Phase 7: Profile likelihood")
+  rpt("")
 
-for (pname in free_names) {
-  ac <- check_arc(profiles[[pname]], optim_ll)
-  arc_results[[pname]] <- ac
-  arc_row[[pname]] <- as.integer(ac$pass)
-  if (!ac$pass) all_pass <- FALSE
-  rpt(sprintf("| %s | %s | %s |", pname,
-              if (ac$pass) "✓ PASS" else "✗ FAIL", ac$reason))
-}
-rpt(sprintf("| **Overall** | **%s** | |", if (all_pass) "✓ ALL PASS" else "✗ SOME FAIL"))
-rpt("")
-
-# Profile plots
-tryCatch({
-  n_plots <- length(free_names)
-  pdf(file.path(plots_dir, "profile_likelihood_v6.pdf"),
-      width = 4 * n_plots, height = 4)
-  par(mfrow = c(1, n_plots))
-  for (pname in free_names) {
-    if (!is.null(profiles[[pname]])) {
-      pdat <- profiles[[pname]]$profile
-      thresh <- profiles[[pname]]$threshold
-      plot(pdat[[pname]], pdat$loglik, type = "l", lwd = 2,
-           xlab = pname, ylab = "log-likelihood",
-           main = paste(pname, if (arc_results[[pname]]$pass) "(PASS)" else "(FAIL)"))
-      abline(h = thresh, col = "red", lty = 2, lwd = 1.5)
-      abline(v = optim_free[pname], col = "blue", lty = 2)
-    }
+  rpt(sprintf("**Best-fit parameters (biological scale):**"))
+  rpt("")
+  for (pi in seq_along(best_bio)) {
+    rpt(sprintf("- `%s` = %.6g", names(best_bio)[pi], best_bio[pi]))
   }
-  dev.off()
-  rpt(sprintf("Profile plot saved: `%s`",
-              file.path(plots_dir, "profile_likelihood_v6.pdf")))
   rpt("")
-}, error = function(e) {
-  rpt(sprintf("Profile plot error: %s", e$message))
+
+  if (!is.null(best_mask)) {
+    free_names <- setdiff(names(best_full), names(best_mask))
+    optim_free <- best_full[free_names]
+  } else {
+    optim_free <- best_full
+    free_names <- names(best_full)
+  }
+
+  # Compute Hessian for adaptive profiling
+  hess <- tryCatch(
+    numDeriv::hessian(
+      func = function(par_free) {
+        names(par_free) <- free_names
+        loglik_math(par_free, env_dat = best_fit$env_dat, occ = best_fit$occ,
+                    mask = best_mask, negative = TRUE, num_threads = 1L)
+      },
+      x = optim_free
+    ),
+    error = function(e) diag(length(optim_free))
+  )
+
+  for (pname in free_names) {
+    cat(sprintf("  Profile %s: ", pname))
+    profiles[[pname]] <- adaptive_profile(
+      pname, optim_free, best_fit$env_dat, best_fit$occ,
+      best_mask, hess, num_threads)
+    cat(if (!is.null(profiles[[pname]])) "OK\n" else "FAILED\n")
+  }
+
+  # Arc check
+  optim_ll <- best_fit$loglik
+  all_pass <- TRUE
+
+  rpt("### Arc check results")
   rpt("")
-})
+  rpt("| Parameter | Pass? | Reason |")
+  rpt("|-----------|-------|--------|")
+
+  for (pname in free_names) {
+    ac <- check_arc(profiles[[pname]], optim_ll)
+    arc_results[[pname]] <- ac
+    arc_row[[pname]] <- as.integer(ac$pass)
+    if (!ac$pass) all_pass <- FALSE
+    rpt(sprintf("| %s | %s | %s |", pname,
+                if (ac$pass) "✓ PASS" else "✗ FAIL", ac$reason))
+  }
+  rpt(sprintf("| **Overall** | **%s** | |", if (all_pass) "✓ ALL PASS" else "✗ SOME FAIL"))
+  rpt("")
+
+  # Profile plots
+  tryCatch({
+    n_plots <- length(free_names)
+    pdf(file.path(plots_dir, "profile_likelihood_v6.pdf"),
+        width = 4 * n_plots, height = 4)
+    par(mfrow = c(1, n_plots))
+    for (pname in free_names) {
+      if (!is.null(profiles[[pname]])) {
+        pdat <- profiles[[pname]]$profile
+        thresh <- profiles[[pname]]$threshold
+        plot(pdat[[pname]], pdat$loglik, type = "l", lwd = 2,
+             xlab = pname, ylab = "log-likelihood",
+             main = paste(pname, if (arc_results[[pname]]$pass) "(PASS)" else "(FAIL)"))
+        abline(h = thresh, col = "red", lty = 2, lwd = 1.5)
+        abline(v = optim_free[pname], col = "blue", lty = 2)
+      }
+    }
+    dev.off()
+    rpt(sprintf("Profile plot saved: `%s`",
+                file.path(plots_dir, "profile_likelihood_v6.pdf")))
+    rpt("")
+  }, error = function(e) {
+    rpt(sprintf("Profile plot error: %s", e$message))
+    rpt("")
+  })
+}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 13 — Final summary + save

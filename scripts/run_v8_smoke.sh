@@ -17,6 +17,7 @@ PA_METHOD="${2:-centroid}"
 BUFFER_M="${3:-2x_median}"
 PCT="${4:-0.10}"
 NUM_STARTS="${5:-50}"
+SKIP_PROFILE="${SKIP_PROFILE:-0}"
 
 REPO_ROOT="${REPO_ROOT:-/home/a474r867/work/xsdm_1000_sp_M_v2}"
 SIF="${SIF:-${HOME}/geospatial-rserver/xsdm_latest.sif}"
@@ -105,13 +106,18 @@ run_r "${REPO_ROOT}/scripts/r/subsample_occ_smoke.R" \
   --pct "$PCT"
 
 # 3. Model selection on the smoke subset
-echo "[3/5] Fitting models (smoke subset)..."
-run_r "${REPO_ROOT}/scripts/r/xsdm_model_selection_v6.R" \
-  --species "$SPECIES" \
-  --env_csv_dir "$OUTPUT_DIR" \
-  --output_dir "$OUTPUT_DIR" \
-  --num_starts "$NUM_STARTS" \
+MS_ARGS=(
+  --species "$SPECIES"
+  --env_csv_dir "$OUTPUT_DIR"
+  --output_dir "$OUTPUT_DIR"
+  --num_starts "$NUM_STARTS"
   --num_threads "$NUM_THREADS"
+)
+if [ "${SKIP_PROFILE}" = "1" ]; then
+  MS_ARGS+=(--skip_profile)
+fi
+echo "[3/5] Fitting models (smoke subset)..."
+run_r "${REPO_ROOT}/scripts/r/xsdm_model_selection_v6.R" "${MS_ARGS[@]}"
 
 # 4. Export selected model
 echo "[4/5] Exporting selected model..."

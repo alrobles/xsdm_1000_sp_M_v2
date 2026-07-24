@@ -150,3 +150,24 @@ message("Continuous raster written to: ", hab_tif)
 message("Binary habitat map written to: ", hab_bin_png)
 message("M / accessibility shapefile written to: ", shapefile_out)
 message("TSS results written to: ", tss_out)
+
+# Append TSS to the per-species report if present
+report_path <- file.path(species_dir, "model_selection_report.md")
+if (file.exists(report_path) && file.exists(tss_out)) {
+  tss <- readRDS(tss_out)
+  tss_lines <- c(
+    "",
+    "## Model fit — True Skill Statistic (TSS)",
+    "",
+    "- **Estimate:** in-sample (resubstitution); optimistic upper bound on performance.",
+    paste0("- **TSS:** ", round(tss$TSS, 4)),
+    paste0("- **Threshold:** ", round(tss$threshold, 4)),
+    paste0("- **Sensitivity:** ", round(tss$sensitivity, 4)),
+    paste0("- **Specificity:** ", round(tss$specificity, 4)),
+    paste0("- **Presences / pseudo-absences:** ", tss$n_presence, " / ", tss$n_absence),
+    paste0("- **Prevalence:** ", round(tss$prevalence, 4)),
+    ""
+  )
+  writeLines(c(readLines(report_path, warn = FALSE), tss_lines), report_path)
+  message("TSS appended to report: ", report_path)
+}
