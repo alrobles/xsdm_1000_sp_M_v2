@@ -37,6 +37,17 @@ suppressPackageStartupMessages({
 if (requireNamespace("progressr", quietly = TRUE)) {
   options(progressr.handlers = progressr::handler_void)
 }
+if (requireNamespace("furrr", quietly = TRUE)) {
+  ns <- asNamespace("furrr")
+  if (exists("furrr_map_template", ns)) {
+    unlockBinding("furrr_map_template", ns)
+    orig_furrr_map_template <- ns[["furrr_map_template"]]
+    ns[["furrr_map_template"]] <- function(x, fn, dots, options, progress, type, purrr_fn_name, env_globals) {
+      progress <- FALSE
+      orig_furrr_map_template(x, fn, dots, options, progress, type, purrr_fn_name, env_globals)
+    }
+  }
+}
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — CLI parsing
