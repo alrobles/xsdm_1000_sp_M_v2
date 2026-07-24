@@ -160,11 +160,11 @@ if (file.exists(report_path) && file.exists(tss_out)) {
     "## Model fit — True Skill Statistic (TSS)",
     "",
     "- **Estimate:** in-sample (resubstitution); optimistic upper bound on performance.",
-    paste0("- **TSS:** ", round(tss$TSS, 4)),
+    paste0("- **TSS:** ", round(tss$tss, 4)),
     paste0("- **Threshold:** ", round(tss$threshold, 4)),
     paste0("- **Sensitivity:** ", round(tss$sensitivity, 4)),
     paste0("- **Specificity:** ", round(tss$specificity, 4)),
-    paste0("- **Presences / pseudo-absences:** ", tss$n_presence, " / ", tss$n_absence),
+    paste0("- **Presences / pseudo-absences:** ", tss$n_presences, " / ", tss$n_pseudoabsences),
     paste0("- **Prevalence:** ", round(tss$prevalence, 4)),
     ""
   )
