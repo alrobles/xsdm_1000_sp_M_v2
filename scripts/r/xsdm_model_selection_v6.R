@@ -1115,6 +1115,7 @@ best_fit  <- L3[[M_Omega]]
 best_full <- best_fit$result$best$par
 best_mask <- best_fit$mask
 best_bio  <- math_to_bio(best_full)
+optim_ll  <- best_fit$loglik
 
 profiles    <- list()
 arc_results <- list()
@@ -1233,7 +1234,11 @@ rpt(sprintf("- **Scale factors:** %s",
             paste(sprintf("%s=%s", names(scale_factors),
                           vapply(scale_factors, summarize_scale_factor, character(1))),
                   collapse = ", ")))
-rpt(sprintf("- **Arcs passing:** %d / %d", sum(sapply(arc_results, `[[`, "pass")), length(arc_results)))
+if (skip_profile) {
+  rpt("- **Arcs passing:** skipped (--skip_profile)")
+} else {
+  rpt(sprintf("- **Arcs passing:** %d / %d", sum(sapply(arc_results, `[[`, "pass")), length(arc_results)))
+}
 rpt(sprintf("- **Total pipeline time:** %.1f min", total_time))
 rpt("")
 
