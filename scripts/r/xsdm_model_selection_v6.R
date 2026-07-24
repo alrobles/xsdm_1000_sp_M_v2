@@ -337,7 +337,8 @@ fit_one_model <- function(var_names, mask = NULL) {
       mask        = mask,
       num_starts  = num_starts,
       num_threads = num_threads,
-      parallel    = FALSE,
+      num_cores   = num_threads,
+      parallel    = (num_threads > 1L),
       verbose     = FALSE
     ),
     error = function(e) NULL
