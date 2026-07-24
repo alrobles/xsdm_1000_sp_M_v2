@@ -33,21 +33,12 @@ suppressPackageStartupMessages({
   library(numDeriv)
 })
 
-# Silence progressr/furrr progress bars in non-interactive runs
+# Progress bars are emitted to stderr by furrr/progressr; to keep I/O low
+# in non-interactive Slurm runs, redirect stderr to /dev/null or a log.
 if (requireNamespace("progressr", quietly = TRUE)) {
-  options(progressr.handlers = progressr::handler_void)
+  progressr::handlers("void")
 }
-if (requireNamespace("furrr", quietly = TRUE)) {
-  ns <- asNamespace("furrr")
-  if (exists("furrr_map_template", ns)) {
-    unlockBinding("furrr_map_template", ns)
-    orig_furrr_map_template <- ns[["furrr_map_template"]]
-    ns[["furrr_map_template"]] <- function(x, fn, dots, options, progress, type, purrr_fn_name, env_globals) {
-      progress <- FALSE
-      orig_furrr_map_template(x, fn, dots, options, progress, type, purrr_fn_name, env_globals)
-    }
-  }
-}
+options(progressr.enable = FALSE)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # SECTION 1 — CLI parsing
